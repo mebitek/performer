@@ -339,17 +339,17 @@ void NoteSequenceEditPage::keyPress(KeyPressEvent &event) {
     }
 
     if (key.isQuickEdit()) {
+        if (key.is(Key::Step15)) {
+            setSectionTracking(not _sectionTracking);
+            event.consume();
+            return;
+        }
         quickEdit(key.quickEdit());
         event.consume();
         return;
     }
 
     if (key.pageModifier()) {
-        // XXX Added here, but should we move it to pageModifier structure?
-        if (key.is(Key::Step5)) {
-            setSectionTracking(not _sectionTracking);
-            event.consume();
-        }
         return;
     }
 
@@ -384,8 +384,6 @@ void NoteSequenceEditPage::keyPress(KeyPressEvent &event) {
     }
 
     if (key.isEncoder()) {
-        setSectionTracking(false);
-
         if (!_showDetail && _stepSelection.any() && allSelectedStepsActive()) {
             setSelectedStepsGate(false);
         } else {
