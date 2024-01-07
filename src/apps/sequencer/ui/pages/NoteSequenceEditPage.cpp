@@ -12,6 +12,7 @@
 #include "os/os.h"
 
 #include "core/utils/StringBuilder.h"
+#include <unordered_map>
 
 enum class ContextAction {
     Init,
@@ -326,12 +327,6 @@ void NoteSequenceEditPage::keyPress(KeyPressEvent &event) {
     const auto &key = event.key();
     auto &sequence = _project.selectedNoteSequence();
 
-    if (key.isQuickEdit()) {
-        if (key.is(Key::Step15)) {
-            tieNotes();
-        }
-    }
-
     if (key.isContextMenu()) {
         contextShow();
         event.consume();
@@ -379,6 +374,11 @@ void NoteSequenceEditPage::keyPress(KeyPressEvent &event) {
     }
 
     if (key.isFunction()) {
+        if(key.shiftModifier() && key.function() == 2 && _stepSelection.any()) {
+            tieNotes();
+            event.consume();
+            return;
+        }
         switchLayer(key.function(), key.shiftModifier());
         event.consume();
     }
@@ -413,62 +413,47 @@ void NoteSequenceEditPage::keyPress(KeyPressEvent &event) {
 }
 
 void NoteSequenceEditPage::encoder(EncoderEvent &event) {
+    auto &trackEngine = _engine.selectedTrackEngine().as<NoteTrackEngine>();
     auto &sequence = _project.selectedNoteSequence();
     const auto &scale = sequence.selectedScale(_project.scale());
 
-    if (!_stepSelection.any())
-    {
-        switch (layer())
-        {
-        case Layer::Gate:
-            setLayer(event.value() > 0 ? Layer::GateOffset : Layer::GateProbability);
-            break;
-        case Layer::GateOffset:
-            setLayer(event.value() > 0 ? Layer::GateProbability : Layer::Gate);
-            break;
-        case Layer::GateProbability:
-            setLayer(event.value() > 0 ? Layer::Gate : Layer::GateOffset);
-            break;
-        case Layer::Retrigger:
-            setLayer(event.value() > 0 ? Layer::RetriggerProbability : Layer::StageRepeatsMode);
-            break;
-        case Layer::RetriggerProbability:
-            setLayer(event.value() > 0 ? Layer::StageRepeats : Layer::Retrigger);
-            break;
-        case Layer::StageRepeats:
-            setLayer(event.value() > 0 ? Layer::StageRepeatsMode : Layer::RetriggerProbability);
-            break;
-        case Layer::StageRepeatsMode:
-            setLayer(event.value() > 0 ? Layer::Retrigger : Layer::StageRepeats);
-            break;
-        case Layer::Length:
-            setLayer(event.value() > 0 ? Layer::LengthVariationRange : Layer::LengthVariationProbability);
-            break;
-        case Layer::LengthVariationRange:
-            setLayer(event.value() > 0 ? Layer::LengthVariationProbability : Layer::Length);
-            break;
-        case Layer::LengthVariationProbability:
-            setLayer(event.value() > 0 ? Layer::Length : Layer::LengthVariationRange);
-            break;
-        case Layer::Note:
-            setLayer(event.value() > 0 ? Layer::NoteVariationRange : Layer::Slide);
-            break;
-        case Layer::NoteVariationRange:
-            setLayer(event.value() > 0 ? Layer::NoteVariationProbability : Layer::Note);
-            break;
-        case Layer::NoteVariationProbability:
-            setLayer(event.value() > 0 ? Layer::Slide : Layer::NoteVariationRange);
-            break;
-        case Layer::Slide:
-            setLayer(event.value() > 0 ? Layer::Note : Layer::NoteVariationProbability);
-            break;
-        default:
-            break;
+    if (!_stepSelection.any()) {
+        std::unordered_map<NoteSequence::Layer, std::pair<NoteSequence::Layer, NoteSequence::Layer>> layerMapAlignedTrack = {
+            { Layer::Retrigger, { Layer::RetriggerProbability, Layer::RetriggerProbability } },
+            { Layer::RetriggerProbability, { Layer::Retrigger, Layer::Retrigger } },
+        };
+        std::unordered_map<NoteSequence::Layer, std::pair<NoteSequence::Layer, NoteSequence::Layer>> layerMapFreeTrack = {
+            { Layer::Retrigger, { Layer::RetriggerProbability, Layer::StageRepeatsMode } },
+            { Layer::RetriggerProbability, { Layer::StageRepeats, Layer::Retrigger } },
+            { Layer::StageRepeats, { Layer::StageRepeatsMode, Layer::RetriggerProbability } },
+            { Layer::StageRepeatsMode, { Layer::Retrigger, Layer::StageRepeats } },
+        };
+        std::unordered_map<NoteSequence::Layer, std::pair<NoteSequence::Layer, NoteSequence::Layer>> layerMap = {
+            { Layer::Gate, { Layer::GateOffset, Layer::GateProbability } },
+            { Layer::GateOffset, { Layer::GateProbability, Layer::Gate } },
+            { Layer::GateProbability, { Layer::Gate, Layer::GateOffset } },
+            { Layer::Length, { Layer::LengthVariationRange, Layer::LengthVariationProbability } },
+            { Layer::LengthVariationRange, { Layer::LengthVariationProbability, Layer::Length } },
+            { Layer::LengthVariationProbability, { Layer::Length, Layer::LengthVariationRange } },
+            { Layer::Note, { Layer::NoteVariationRange, Layer::Slide } },
+            { Layer::NoteVariationRange, { Layer::Slide, Layer::NoteVariationProbability } },
+            { Layer::NoteVariationProbability, { Layer::NoteVariationRange, Layer::Note } },
+            { Layer::Slide, { Layer::Note, Layer::NoteVariationProbability } },
+            { Layer::Condition, { Layer::Condition, Layer::Condition } },
+            { Layer::Last, { Layer::Last, Layer::Last } },
+        };
+
+        if (trackEngine.playMode() == Types::PlayMode::Aligned) {
+            layerMap.insert(layerMapAlignedTrack.begin(), layerMapAlignedTrack.end());
+        } else {
+            layerMap.insert(layerMapFreeTrack.begin(), layerMapFreeTrack.end());
+        }
+        auto it = layerMap.find(layer());
+        if (it != layerMap.end()) {
+            setLayer(event.value() > 0 ? it->second.first : it->second.second);
         }
         return;
-    }
-    else
-    {
+    } else {
         _showDetail = true;
         _showDetailTicks = os::ticks();
     }
@@ -564,16 +549,22 @@ void NoteSequenceEditPage::midi(MidiEvent &event) {
 }
 
 void NoteSequenceEditPage::switchLayer(int functionKey, bool shift) {
+    auto &trackEngine = _engine.selectedTrackEngine().as<NoteTrackEngine>();
+
     if (shift) {
         switch (Function(functionKey)) {
         case Function::Gate:
             setLayer(Layer::Gate);
             break;
         case Function::Retrigger:
-            setLayer(Layer::StageRepeats);
+            if(trackEngine.playMode() == Types::PlayMode::Free) {
+                setLayer(Layer::StageRepeats);
+            }
             break;
         case Function::Length:
-            setLayer(Layer::StageRepeatsMode);
+            if(trackEngine.playMode() == Types::PlayMode::Free) {
+                setLayer(Layer::StageRepeatsMode);
+            }
             break;
         case Function::Note:
             setLayer(Layer::Slide);
@@ -605,7 +596,7 @@ void NoteSequenceEditPage::switchLayer(int functionKey, bool shift) {
             setLayer(Layer::RetriggerProbability);
             break;
         case Layer::RetriggerProbability:
-            setLayer(Layer::StageRepeats);
+            setLayer(trackEngine.playMode() == Types::PlayMode::Free ? Layer::StageRepeats : Layer::Retrigger);
             break;
         case Layer::StageRepeats:
             setLayer(Layer::StageRepeatsMode);

@@ -46,6 +46,8 @@ public:
 
     void setMonitorStep(int index);
 
+    Types::PlayMode playMode() const { return _noteTrack.playMode(); }
+
 private:
     void triggerStep(uint32_t tick, uint32_t divisor, bool nextStep);
     void triggerStep(uint32_t tick, uint32_t divisor);
