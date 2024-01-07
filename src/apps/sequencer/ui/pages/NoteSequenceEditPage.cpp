@@ -12,7 +12,7 @@
 #include "os/os.h"
 
 #include "core/utils/StringBuilder.h"
-#include <unordered_map>
+#include <map>
 
 enum class ContextAction {
     Init,
@@ -420,17 +420,17 @@ void NoteSequenceEditPage::encoder(EncoderEvent &event) {
     const auto &scale = sequence.selectedScale(_project.scale());
 
     if (!_stepSelection.any()) {
-        std::unordered_map<NoteSequence::Layer, std::pair<NoteSequence::Layer, NoteSequence::Layer>> layerMapAlignedTrack = {
+        std::map<NoteSequence::Layer, std::pair<NoteSequence::Layer, NoteSequence::Layer>> layerMapAlignedTrack = {
             { Layer::Retrigger, { Layer::RetriggerProbability, Layer::RetriggerProbability } },
             { Layer::RetriggerProbability, { Layer::Retrigger, Layer::Retrigger } },
         };
-        std::unordered_map<NoteSequence::Layer, std::pair<NoteSequence::Layer, NoteSequence::Layer>> layerMapFreeTrack = {
+        std::map<NoteSequence::Layer, std::pair<NoteSequence::Layer, NoteSequence::Layer>> layerMapFreeTrack = {
             { Layer::Retrigger, { Layer::RetriggerProbability, Layer::StageRepeatsMode } },
             { Layer::RetriggerProbability, { Layer::StageRepeats, Layer::Retrigger } },
             { Layer::StageRepeats, { Layer::StageRepeatsMode, Layer::RetriggerProbability } },
             { Layer::StageRepeatsMode, { Layer::Retrigger, Layer::StageRepeats } },
         };
-        std::unordered_map<NoteSequence::Layer, std::pair<NoteSequence::Layer, NoteSequence::Layer>> layerMap = {
+        std::map<NoteSequence::Layer, std::pair<NoteSequence::Layer, NoteSequence::Layer>> layerMap = {
             { Layer::Gate, { Layer::GateOffset, Layer::GateProbability } },
             { Layer::GateOffset, { Layer::GateProbability, Layer::Gate } },
             { Layer::GateProbability, { Layer::Gate, Layer::GateOffset } },

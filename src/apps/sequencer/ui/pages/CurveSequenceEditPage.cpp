@@ -11,7 +11,6 @@
 #include "core/utils/StringBuilder.h"
 #include <iostream>
 #include <map>
-#include <unordered_map>
 
 enum class ContextAction {
     Init,
@@ -412,7 +411,7 @@ void CurveSequenceEditPage::encoder(EncoderEvent &event) {
     auto &sequence = _project.selectedCurveSequence();
 
     if (!_stepSelection.any()) {
-        std::unordered_map<CurveSequence::Layer, std::pair<CurveSequence::Layer, Layer>> layerMap = {
+        std::map<CurveSequence::Layer, std::pair<CurveSequence::Layer, Layer>> layerMap = {
             { Layer::Shape, { Layer::ShapeVariation, Layer::ShapeVariationProbability } },
             { Layer::ShapeVariation, { Layer::ShapeVariationProbability, Layer::Shape } },
             { Layer::ShapeVariationProbability, { Layer::Shape, Layer::ShapeVariation } },
