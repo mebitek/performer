@@ -11,7 +11,6 @@
 #include "core/utils/StringBuilder.h"
 #include <iostream>
 #include <map>
-#include <unordered_map>
 
 enum class ContextAction {
     Init,
@@ -412,18 +411,24 @@ void CurveSequenceEditPage::encoder(EncoderEvent &event) {
     auto &sequence = _project.selectedCurveSequence();
 
     if (!_stepSelection.any()) {
-        std::unordered_map<CurveSequence::Layer, std::pair<CurveSequence::Layer, Layer>> layerMap = {
-            { Layer::Shape, { Layer::ShapeVariation, Layer::ShapeVariationProbability } },
-            { Layer::ShapeVariation, { Layer::ShapeVariationProbability, Layer::Shape } },
-            { Layer::ShapeVariationProbability, { Layer::Shape, Layer::ShapeVariation } },
-            { Layer::Min, { Layer::Max, Layer::Max } },
-            { Layer::Max, { Layer::Min, Layer::Min } },
-            { Layer::Gate, { Layer::GateProbability, Layer::GateProbability } },
-            { Layer::GateProbability, { Layer::Gate, Layer::Gate } },
-        };
-        auto it = layerMap.find(layer());
-        if (it != layerMap.end()) {
-            setLayer(event.value() > 0 ? it->second.first : it->second.second);
+        switch (layer()) {
+        case Layer::Shape:
+            setLayer(event.value() > 0 ? Layer::ShapeVariation : Layer::ShapeVariationProbability);
+            break;
+        case Layer::ShapeVariation:
+            setLayer(event.value() > 0 ? Layer::ShapeVariationProbability : Layer::Shape);
+            break;
+        case Layer::ShapeVariationProbability:
+            setLayer(event.value() > 0 ? Layer::Shape : Layer::ShapeVariation);
+            break;
+        case Layer::Gate:
+            setLayer(Layer::GateProbability);
+            break;
+        case Layer::GateProbability:
+            setLayer(Layer::Gate);
+            break;
+        default:
+            break;
         }
         return;
     } else {
