@@ -11,7 +11,7 @@ nav: 20
 > The user manual is also available as a PDF [here](./manual.pdf).
 <!-- pdf-exclude-end -->
 
-> This document is written for firmware version 0.3.0
+> This document is written for firmware version 0.3.1
 <!-- TOC -->
 
 <!-- page-break -->
